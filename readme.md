@@ -1,7 +1,7 @@
 # ⬡ TOR Network — AI Correlation Analyst
 
 > An interactive educational visualization showing onion routing, per-relay agent visibility, timing correlation attacks, and AI-powered traffic analysis.  
-> **Live demo:** `https://<your-username>.github.io/tor-viz/`
+> **Live demo:** `https://zephyrsai.github.io/relay_ai_agent/`
 
 ---
 
