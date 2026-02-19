@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TOR Network — AI Correlation Analyst</title>
+<style>
+:root {
+  --bg:#0d1117;--panel:#161b22;--panel2:#1c2128;--border:#30363d;
+  --green:#39d353;--purple:#8957e5;--orange:#f78166;--blue:#58a6ff;
+  --yellow:#e3b341;--red:#ff6b6b;--cyan:#56d4dd;--text:#c9d1d9;--muted:#8b949e;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;font-size:12px;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+header{padding:10px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:var(--panel);flex-shrink:0;}
+header h1{font-size:15px;color:var(--blue);}
+header p{color:var(--muted);font-size:11px;}
+.badges{display:flex;gap:6px;margin-left:auto;}
+.badge{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:bold;}
+.badge-edu{background:#1f4b2e;color:var(--green);}
+.badge-ai{background:#2d2060;color:var(--purple);}
+.badge-poc{background:#3d1f1f;color:var(--orange);}
+
+.controls{padding:8px 16px;background:var(--panel2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;}
+.btn{padding:5px 12px;border:1px solid var(--border);border-radius:5px;cursor:pointer;font-family:inherit;font-size:11px;background:var(--bg);color:var(--text);transition:all .15s;}
+.btn:hover{border-color:var(--blue);color:var(--blue);}
+.btn.active{background:var(--blue);color:#000;border-color:var(--blue);}
+.btn.atk{border-color:var(--orange);color:var(--orange);}
+.btn.atk.active{background:var(--orange);color:#000;}
+.btn.ai-btn{border-color:var(--purple);color:var(--purple);}
+.btn.ai-btn.active{background:var(--purple);color:#fff;}
+label{color:var(--muted);font-size:11px;display:flex;align-items:center;gap:5px;}
+input[type=range]{width:70px;accent-color:var(--blue);}
+.sep{width:1px;height:20px;background:var(--border);margin:0 4px;}
+.threat-meter{display:flex;align-items:center;gap:6px;margin-left:auto;}
+.threat-label{font-size:10px;color:var(--muted);}
+.threat-bar{width:80px;height:8px;background:var(--panel);border-radius:4px;border:1px solid var(--border);overflow:hidden;}
+.threat-fill{height:100%;width:0%;background:var(--green);border-radius:4px;transition:width .5s,background .5s;}
+
+.main{display:grid;grid-template-columns:1fr 230px 280px;grid-template-rows:1fr 160px;flex:1;overflow:hidden;}
+#canvasWrap{grid-row:1;grid-column:1;overflow:hidden;position:relative;}
+canvas#c{display:block;}
+#timingWrap{grid-row:2;grid-column:1;border-top:1px solid var(--border);background:var(--panel2);position:relative;overflow:hidden;}
+canvas#tc{display:block;}
+.timing-label{position:absolute;top:6px;left:10px;font-size:10px;color:var(--muted);}
+
+.relay-panel{grid-row:1/3;grid-column:2;border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.relay-panel h2{padding:8px 12px;font-size:10px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);letter-spacing:1px;background:var(--panel);}
+.agent-list{flex:1;overflow-y:auto;}
+.agent{border-bottom:1px solid var(--border);}
+.agent-hdr{padding:7px 12px;display:flex;align-items:center;gap:7px;cursor:pointer;background:var(--panel);user-select:none;}
+.agent-hdr:hover{background:#21262d;}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.agent-name{font-size:11px;font-weight:bold;flex:1;}
+.agent-vis{font-size:9px;color:var(--muted);}
+.log-wrap{background:var(--bg);max-height:140px;overflow-y:auto;}
+.log-item{padding:4px 12px;border-bottom:1px solid #1c2128;line-height:1.6;font-size:10px;}
+.log-item.new{animation:flash .4s;}
+@keyframes flash{from{background:rgba(88,166,255,.12);}to{background:transparent;}}
+.kn{color:var(--green);}
+.unk{color:var(--orange);}
+.corr{color:var(--yellow);}
+.leg-panel{padding:8px 12px;border-top:1px solid var(--border);font-size:10px;color:var(--muted);line-height:2;}
+.leg-panel span{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle;}
+
+.ai-panel{grid-row:1/3;grid-column:3;border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--panel2);}
+.ai-header{padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.ai-icon{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#2d2060,#8957e5);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.ai-title{font-size:12px;font-weight:bold;color:var(--purple);}
+.ai-sub{font-size:10px;color:var(--muted);}
+.ai-status{width:7px;height:7px;border-radius:50%;background:var(--muted);margin-left:auto;flex-shrink:0;}
+.ai-status.thinking{background:var(--purple);box-shadow:0 0 6px var(--purple);animation:pulse 1s infinite;}
+.ai-status.active{background:var(--green);box-shadow:0 0 6px var(--green);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.api-key-row{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center;}
+.api-key-row input{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;font-family:inherit;font-size:10px;}
+.api-key-row input:focus{outline:none;border-color:var(--purple);}
+.api-key-row .btn{padding:4px 8px;font-size:10px;}
+.ai-feed{flex:1;overflow-y:auto;padding:8px;}
+.ai-msg{margin-bottom:8px;line-height:1.6;}
+.ai-msg .role{font-size:9px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;}
+.ai-msg.analyst .role{color:var(--purple);}
+.ai-msg.user-msg .role{color:var(--blue);}
+.ai-msg.system-msg .role{color:var(--muted);}
+.ai-msg .body{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:11px;line-height:1.7;white-space:pre-wrap;}
+.ai-msg.analyst .body{border-color:rgba(137,87,229,.3);}
+.ai-msg.user-msg .body{border-color:rgba(88,166,255,.3);}
+.ai-msg.system-msg .body{border-color:rgba(139,148,158,.2);color:var(--muted);}
+.ai-typing{display:inline-block;}
+.ai-typing span{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--purple);margin:0 2px;animation:bounce .8s infinite;}
+.ai-typing span:nth-child(2){animation-delay:.15s;}
+.ai-typing span:nth-child(3){animation-delay:.3s;}
+@keyframes bounce{0%,80%,100%{transform:translateY(0);}40%{transform:translateY(-5px);}}
+.ai-actions{padding:8px;border-top:1px solid var(--border);display:flex;gap:5px;flex-wrap:wrap;}
+.ai-chat{padding:6px 10px;border-top:1px solid var(--border);display:flex;gap:6px;}
+.ai-chat input{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-family:inherit;font-size:11px;}
+.ai-chat input:focus{outline:none;border-color:var(--purple);}
+.ai-chat .btn{padding:5px 10px;}
+
+.status-bar{padding:5px 16px;background:var(--panel);border-top:1px solid var(--border);display:flex;gap:20px;font-size:10px;color:var(--muted);flex-shrink:0;}
+.status-bar b{color:var(--text);}
+#sMode{color:var(--green);}
+
+.tooltip{position:fixed;background:#1c2128;border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:11px;pointer-events:none;display:none;max-width:200px;line-height:1.7;z-index:100;}
+.tooltip.show{display:block;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>⬡ TOR Network — AI Correlation Analyst</h1>
+    <p>Multi-agent monitoring system · Educational POC · Onion routing + timing correlation + AI-assisted analysis</p>
+  </div>
+  <div class="badges">
+    <span class="badge badge-edu">EDU</span>
+    <span class="badge badge-ai">AI-Powered</span>
+    <span class="badge badge-poc">POC</span>
+  </div>
+</header>
+
+<div class="controls">
+  <button class="btn active" id="btnDemo">▶ Auto Demo</button>
+  <button class="btn" id="btnSend">⊕ Send Packet</button>
+  <button class="btn atk" id="btnAttack">☠ Correlation Attack</button>
+  <button class="btn" id="btnClear">⊘ Reset</button>
+  <div class="sep"></div>
+  <label>Speed <input type="range" id="speedSlider" min="1" max="5" value="3"></label>
+  <label>Burst <input type="range" id="burstSlider" min="1" max="5" value="2"></label>
+  <div class="sep"></div>
+  <button class="btn ai-btn active" id="btnAIAuto">🤖 AI Auto-Analyze</button>
+  <div class="threat-meter">
+    <span class="threat-label">Threat Level</span>
+    <div class="threat-bar"><div class="threat-fill" id="threatFill"></div></div>
+    <span id="threatPct" style="font-size:10px;color:var(--muted)">0%</span>
+  </div>
+</div>
+
+<div class="main">
+  <div id="canvasWrap"><canvas id="c"></canvas></div>
+  <div id="timingWrap">
+    <canvas id="tc"></canvas>
+    <span class="timing-label">⏱ Timing Correlation Graph — Guard events (▲) vs Exit events (▼)</span>
+  </div>
+
+  <!-- Relay Agent Panel -->
+  <div class="relay-panel">
+    <h2>Relay Agent Logs</h2>
+    <div class="agent-list" id="agentList"></div>
+    <div class="leg-panel">
+      <div><span style="background:#39d353"></span>Seen / Known</div>
+      <div><span style="background:#f78166"></span>Encrypted / Unknown</div>
+      <div><span style="background:#e3b341"></span>Correlated (AI)</div>
+    </div>
+  </div>
+
+  <!-- AI Analyst Panel -->
+  <div class="ai-panel">
+    <div class="ai-header">
+      <div class="ai-icon">🤖</div>
+      <div>
+        <div class="ai-title">AI Security Analyst</div>
+        <div class="ai-sub">Powered by Claude · Correlation Engine</div>
+      </div>
+      <div class="ai-status active" id="aiStatus"></div>
+    </div>
+    <div class="api-key-row">
+      <input type="password" id="apiKeyInput" placeholder="API key (auto in claude.ai, paste for GitHub Pages)">
+      <button class="btn" id="btnSaveKey" style="border-color:var(--purple);color:var(--purple);">Set</button>
+    </div>
+    <div class="ai-feed" id="aiFeed"></div>
+    <div class="ai-actions">
+      <button class="btn" onclick="aiQuick('explain_tor')">📖 Explain TOR</button>
+      <button class="btn" onclick="aiQuick('analyze_traffic')">📊 Analyze Traffic</button>
+      <button class="btn" onclick="aiQuick('correlation_report')">⚡ Correlation Report</button>
+      <button class="btn" onclick="aiQuick('real_world')">🌐 Real-World Use</button>
+    </div>
+    <div class="ai-chat">
+      <input type="text" id="aiChatInput" placeholder="Ask the analyst anything…" onkeydown="if(e.key==='Enter')sendChat()">
+      <button class="btn ai-btn" onclick="sendChat()">Ask</button>
+    </div>
+  </div>
+</div>
+
+<div class="status-bar">
+  <span>Packets: <b id="sPkts">0</b></span>
+  <span>Circuits: <b id="sCircuits">0</b></span>
+  <span>Correlations: <b id="sCorr">0</b></span>
+  <span>Guard events: <b id="sGuard">0</b></span>
+  <span>Exit events: <b id="sExit">0</b></span>
+  <span id="sMode">● Normal Mode</span>
+</div>
+<div class="tooltip" id="tip"></div>
+
+<script>
+// ── Colors & Constants ────────────────────────────────────────────────────
+const C = { client:'#58a6ff', guard:'#39d353', middle:'#8957e5', exit:'#f78166', dest:'#e3b341', muted:'#8b949e' };
+const CIRCUIT_COLORS = ['#39d353','#58a6ff','#f78166','#e3b341','#56d4dd','#ff9f43'];
+const NR = 26; // node radius
+
+// ── State ─────────────────────────────────────────────────────────────────
+let nodes = {}, packets = [], circuits = [], logs = {guard:[],middle:[],exit:[]};
+let pktCount=0, corrCount=0, guardEvents=0, exitEvents=0;
+let attackMode=false, aiAutoMode=true, demoRunning=false;
+let demoTimer=null, aiCooldown=0;
+let threatLevel=0;
+let apiKey = '';
+let timingEvents = []; // [{type:'guard'|'exit', t, circuitId}]
+let aiConversationHistory = [];
+
+// ── Canvas Setup ──────────────────────────────────────────────────────────
+const wrap = document.getElementById('canvasWrap');
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const twrap = document.getElementById('timingWrap');
+const tc = document.getElementById('tc');
+const tctx = tc.getContext('2d');
+let W=0, H=0, TH=0;
+
+function resize() {
+  const dpr = devicePixelRatio;
+  W = wrap.clientWidth; H = wrap.clientHeight;
+  TH = twrap.clientHeight;
+  canvas.width=W*dpr; canvas.height=H*dpr;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  ctx.scale(dpr,dpr);
+  tc.width=wrap.clientWidth*dpr; tc.height=TH*dpr;
+  tc.style.width=wrap.clientWidth+'px'; tc.style.height=TH+'px';
+  tctx.scale(dpr,dpr);
+  layoutNodes();
+}
+window.addEventListener('resize', resize);
+
+function layoutNodes() {
+  const y=H/2, pad=W*0.09;
+  nodes = {
+    client: {x:pad,        y, lbl:'Client',       role:'You',          col:C.client, k:'client'},
+    guard:  {x:W*0.27,     y, lbl:'Guard Node',   role:'Entry Relay',  col:C.guard,  k:'guard'},
+    middle: {x:W*0.5,      y, lbl:'Middle Relay', role:'Mid Relay',    col:C.middle, k:'middle'},
+    exit:   {x:W*0.73,     y, lbl:'Exit Node',    role:'Exit Relay',   col:C.exit,   k:'exit'},
+    dest:   {x:W-pad,      y, lbl:'Destination',  role:'Web Server',   col:C.dest,   k:'dest'},
+  };
+}
+
+// ── Packet Factory ────────────────────────────────────────────────────────
+const PATH = ['client','guard','middle','exit','dest'];
+function makePacket(cid, delay=0) {
+  const cidx = circuits.findIndex(c=>c.id===cid);
+  return { id:++pktCount, cid, path:PATH, step:0, t:0, delay, done:false,
+           layers:3, col:CIRCUIT_COLORS[cidx%CIRCUIT_COLORS.length], trail:[] };
+}
+
+function sendPackets(n=1) {
+  const cid = `C${String(circuits.length+1).padStart(3,'0')}`;
+  const cidx = circuits.length;
+  circuits.push({id:cid, src:`10.${cidx}.0.1`, dst:`93.184.${200+cidx}.${34+cidx}`, t:Date.now()});
+  document.getElementById('sCircuits').textContent = circuits.length;
+  for(let i=0;i<n;i++) packets.push(makePacket(cid, i*200));
+}
+
+// ── Logging ───────────────────────────────────────────────────────────────
+function ts() { return new Date().toISOString().substr(11,8); }
+function addLog(relay, entry) {
+  logs[relay].unshift(entry);
+  if(logs[relay].length>40) logs[relay].pop();
+  renderLog(relay);
+}
+function renderLog(relay) {
+  const el = document.getElementById('log-'+relay);
+  if(!el) return;
+  el.innerHTML = logs[relay].slice(0,10).map((e,i)=>`
+    <div class="log-item ${i===0?'new':''}">
+      <span style="color:var(--muted)">[${e.ts}]</span>
+      <span class="${e.fromK?'kn':'unk'}">${e.from}</span> →
+      <span class="${e.toK?'kn':'unk'}">${e.to}</span>
+      ${e.corr?`<br><span class="corr">⚡ AI correlated: ${e.src}→${e.dst}</span>`:''}
+    </div>`).join('');
+}
+
+// ── Node Visit ────────────────────────────────────────────────────────────
+function onVisit(p, key) {
+  const cir = circuits.find(c=>c.id===p.cid); if(!cir) return;
+  const now = Date.now();
+  if(key==='guard') {
+    guardEvents++;
+    document.getElementById('sGuard').textContent=guardEvents;
+    addLog('guard',{ts:ts(),from:cir.src,to:'middle-relay',fromK:true,toK:true});
+    timingEvents.push({type:'guard',t:now,cid:p.cid,src:cir.src,dst:cir.dst});
+  } else if(key==='middle') {
+    addLog('middle',{ts:ts(),from:'guard-node',to:'exit-node',fromK:true,toK:true});
+  } else if(key==='exit') {
+    exitEvents++;
+    document.getElementById('sExit').textContent=exitEvents;
+    addLog('exit',{ts:ts(),from:'middle-relay',to:cir.dst,fromK:true,toK:true});
+    timingEvents.push({type:'exit',t:now,cid:p.cid,src:cir.src,dst:cir.dst});
+    if(attackMode) runCorrelation(cir);
+    if(aiAutoMode && aiCooldown<=0) { aiAutoAnalyze(); aiCooldown=8000; }
+  }
+  if(timingEvents.length>200) timingEvents=timingEvents.slice(-200);
+}
+
+function runCorrelation(cir) {
+  corrCount++;
+  document.getElementById('sCorr').textContent=corrCount;
+  threatLevel=Math.min(100, threatLevel+12);
+  updateThreat();
+  addLog('guard',{ts:ts(),from:cir.src,to:'???',fromK:true,toK:false,corr:true,src:cir.src,dst:cir.dst});
+  addLog('exit', {ts:ts(),from:'???',to:cir.dst,fromK:false,toK:true, corr:true,src:cir.src,dst:cir.dst});
+}
+
+function updateThreat() {
+  const fill=document.getElementById('threatFill');
+  const pct=document.getElementById('threatPct');
+  if(!fill) return;
+  fill.style.width=threatLevel+'%';
+  fill.style.background = threatLevel<30?'var(--green)':threatLevel<70?'var(--yellow)':'var(--red)';
+  pct.textContent=threatLevel+'%';
+  pct.style.color = threatLevel<30?'var(--green)':threatLevel<70?'var(--yellow)':'var(--red)';
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────
+const RELAY_META = {
+  guard:  {col:C.guard,  vis:'Sees: real client IP'},
+  middle: {col:C.middle, vis:'Sees: hops only'},
+  exit:   {col:C.exit,   vis:'Sees: destination IP'},
+};
+function buildSidebar() {
+  const al=document.getElementById('agentList'); al.innerHTML='';
+  ['guard','middle','exit'].forEach(n=>{
+    const {col,vis}=RELAY_META[n];
+    const d=document.createElement('div'); d.className='agent';
+    d.innerHTML=`
+      <div class="agent-hdr" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none'">
+        <div class="dot" style="background:${col}"></div>
+        <span class="agent-name">${n.charAt(0).toUpperCase()+n.slice(1)} Agent</span>
+        <span class="agent-vis">${vis}</span>
+      </div>
+      <div class="log-wrap" id="log-${n}"><div class="log-item" style="color:var(--muted)">Waiting…</div></div>`;
+    al.appendChild(d);
+  });
+}
+buildSidebar();
+
+// ── Canvas Draw ───────────────────────────────────────────────────────────
+const ORDER = ['client','guard','middle','exit','dest'];
+const NODE_TIPS = {
+  client:'<b style="color:#58a6ff">Client</b><br>Builds 3-hop encrypted circuit. Only knows Guard IP.',
+  guard: '<b style="color:#39d353">Guard (Entry)</b><br>Knows: real client IP + next hop.<br>Cannot see destination.',
+  middle:'<b style="color:#8957e5">Middle Relay</b><br>Knows: only adjacent hops.<br>Zero client/dest knowledge.',
+  exit:  '<b style="color:#f78166">Exit Node</b><br>Knows: previous hop + real destination.<br>Cannot see client.',
+  dest:  '<b style="color:#e3b341">Destination</b><br>Sees exit node as the "client". True origin hidden.',
+};
+
+function drawNode(n, lit) {
+  ctx.save();
+  if(lit){ctx.shadowColor=n.col;ctx.shadowBlur=22;}
+  ctx.beginPath();ctx.arc(n.x,n.y,NR,0,Math.PI*2);
+  ctx.fillStyle='#1c2128';ctx.fill();
+  ctx.strokeStyle=n.col;ctx.lineWidth=lit?2.5:1.5;ctx.stroke();
+  ctx.shadowBlur=0;
+  ctx.font='13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(n.k==='client'?'💻':n.k==='dest'?'🖥':'🤖',n.x,n.y-3);
+  if(['guard','middle','exit'].includes(n.k)){
+    ctx.font='6px Courier New';ctx.fillStyle=n.col;ctx.textBaseline='middle';
+    ctx.fillText('AGENT',n.x,n.y+11);
+  }
+  ctx.font='bold 10px Courier New';ctx.fillStyle=n.col;ctx.textBaseline='top';
+  ctx.fillText(n.lbl,n.x,n.y+NR+5);
+  ctx.font='9px Courier New';ctx.fillStyle='#8b949e';
+  ctx.fillText(n.role,n.x,n.y+NR+16);
+  ctx.restore();
+}
+
+function drawEdge(a,b) {
+  ctx.save();ctx.setLineDash([3,4]);
+  ctx.strokeStyle='#21262d';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+  ctx.restore();
+}
+
+function drawPacket(p) {
+  if(p.done||p.step>=p.path.length-1) return;
+  const fr=nodes[p.path[p.step]], to=nodes[p.path[p.step+1]];
+  if(!fr||!to) return;
+  const px=fr.x+(to.x-fr.x)*p.t, py=fr.y+(to.y-fr.y)*p.t;
+  // Trail
+  p.trail.push({x:px,y:py});
+  if(p.trail.length>18) p.trail.shift();
+  ctx.save();
+  p.trail.forEach((pt,i)=>{
+    const a=i/p.trail.length*0.35;
+    ctx.beginPath();ctx.arc(pt.x,pt.y,2,0,Math.PI*2);
+    ctx.fillStyle=p.col;ctx.globalAlpha=a;ctx.fill();
+  });
+  ctx.globalAlpha=1;
+  // Onion rings
+  for(let l=p.layers;l>=0;l--){
+    ctx.beginPath();ctx.arc(px,py,5+l*5,0,Math.PI*2);
+    const lc=[C.guard,C.exit,C.middle,C.guard][l]||p.col;
+    ctx.strokeStyle=lc;ctx.lineWidth=l===0?2:1;
+    ctx.globalAlpha=l===0?1:0.25+l*0.1;ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+  ctx.beginPath();ctx.arc(px,py,4,0,Math.PI*2);
+  ctx.fillStyle=p.col;ctx.fill();
+  ctx.restore();
+}
+
+function drawCorrArc() {
+  if(!attackMode||circuits.length===0) return;
+  const g=nodes.guard,e=nodes.exit;
+  ctx.save();
+  ctx.strokeStyle='#e3b341';ctx.lineWidth=1.5;ctx.setLineDash([5,3]);
+  ctx.shadowColor='#e3b341';ctx.shadowBlur=10;
+  const mx=(g.x+e.x)/2, my=Math.min(g.y,e.y)-70;
+  ctx.beginPath();ctx.moveTo(g.x,g.y-NR);
+  ctx.quadraticCurveTo(mx,my,e.x,e.y-NR);ctx.stroke();
+  ctx.shadowBlur=0;ctx.setLineDash([]);
+  ctx.font='bold 9px Courier New';ctx.fillStyle='#e3b341';ctx.textAlign='center';
+  ctx.fillText('⚡ TIMING CORRELATION (Global Adversary)',mx,my-10);
+  ctx.restore();
+}
+
+function drawInfoOverlay() {
+  // Draw knowledge boxes next to each relay
+  const relays = [{k:'guard',know:['✓ Client IP','✓ Next hop','✗ Destination']},
+                  {k:'middle',know:['✓ Prev hop','✓ Next hop','✗ Client/Dest']},
+                  {k:'exit', know:['✗ Client IP','✓ Prev hop','✓ Destination']}];
+  relays.forEach(r=>{
+    const n=nodes[r.k]; if(!n) return;
+    const bx=n.x-44, by=n.y+NR+30, bw=88, bh=46;
+    ctx.save();
+    ctx.fillStyle='rgba(22,27,34,0.88)';
+    ctx.strokeStyle=n.col+'44';ctx.lineWidth=1;
+    ctx.beginPath();ctx.roundRect(bx,by,bw,bh,4);ctx.fill();ctx.stroke();
+    ctx.font='8px Courier New';ctx.textAlign='left';
+    r.know.forEach((ln,i)=>{
+      ctx.fillStyle=ln.startsWith('✓')?'#39d353':'#f78166';
+      ctx.fillText(ln,bx+6,by+12+i*12);
+    });
+    ctx.restore();
+  });
+}
+
+// ── Timing Graph ──────────────────────────────────────────────────────────
+function drawTimingGraph() {
+  const tw=wrap.clientWidth;
+  tctx.clearRect(0,0,tw,TH);
+  tctx.fillStyle='#0d1117';tctx.fillRect(0,0,tw,TH);
+  const now=Date.now(), span=20000;
+  const mid=TH/2;
+
+  // Axis
+  tctx.strokeStyle='#21262d';tctx.lineWidth=1;
+  tctx.beginPath();tctx.moveTo(0,mid);tctx.lineTo(tw,mid);tctx.stroke();
+  tctx.font='9px Courier New';tctx.fillStyle='#8b949e';
+  tctx.fillText('GUARD ▲',4,mid-6);tctx.fillText('EXIT ▼',4,mid+14);
+
+  const ev=timingEvents.filter(e=>now-e.t<span);
+  ev.forEach(e=>{
+    const x=tw-(now-e.t)/span*tw;
+    const isGuard=e.type==='guard';
+    const cid=e.cid; const cidx=circuits.findIndex(c=>c.id===cid);
+    const col=CIRCUIT_COLORS[cidx%CIRCUIT_COLORS.length]||'#fff';
+    tctx.strokeStyle=col;tctx.lineWidth=1.5;
+    tctx.beginPath();
+    if(isGuard){tctx.moveTo(x,mid);tctx.lineTo(x,mid-22);}
+    else{tctx.moveTo(x,mid);tctx.lineTo(x,mid+22);}
+    tctx.stroke();
+    // Dot
+    tctx.beginPath();tctx.arc(x,isGuard?mid-22:mid+22,3,0,Math.PI*2);
+    tctx.fillStyle=col;tctx.fill();
+
+    // Draw correlation line if attack mode and matching circuit
+    if(attackMode&&!isGuard){
+      const match=ev.find(g=>g.type==='guard'&&g.cid===cid&&Math.abs(g.t-e.t)<4000);
+      if(match){
+        const gx=tw-(now-match.t)/span*tw;
+        tctx.strokeStyle='rgba(227,179,65,0.5)';tctx.lineWidth=1;tctx.setLineDash([2,3]);
+        tctx.beginPath();tctx.moveTo(gx,mid-22);
+        tctx.bezierCurveTo(gx,mid-40,(x+gx)/2,mid-40,x,mid+22);
+        tctx.stroke();tctx.setLineDash([]);
+      }
+    }
+  });
+}
+
+// ── AI Analyst ────────────────────────────────────────────────────────────
+function getApiKey() { return apiKey || ''; }
+
+document.getElementById('btnSaveKey').onclick = ()=>{
+  apiKey = document.getElementById('apiKeyInput').value.trim();
+  addAIMsg('system-msg','system','API key saved. AI Analyst ready.');
+};
+document.getElementById('apiKeyInput').onkeydown=(e)=>{ if(e.key==='Enter') document.getElementById('btnSaveKey').click(); };
+
+function addAIMsg(cls, role, body) {
+  const feed=document.getElementById('aiFeed');
+  const names={analyst:'🤖 AI Analyst','user-msg':'👤 You','system-msg':'⚙ System'};
+  const d=document.createElement('div'); d.className=`ai-msg ${cls}`;
+  d.innerHTML=`<div class="role">${names[cls]||role}</div><div class="body">${body}</div>`;
+  feed.appendChild(d); feed.scrollTop=feed.scrollHeight;
+}
+
+function showTyping() {
+  const feed=document.getElementById('aiFeed');
+  const d=document.createElement('div'); d.className='ai-msg analyst'; d.id='ai-typing-el';
+  d.innerHTML=`<div class="role">🤖 AI Analyst</div><div class="body"><div class="ai-typing"><span></span><span></span><span></span></div></div>`;
+  feed.appendChild(d); feed.scrollTop=feed.scrollHeight;
+}
+function removeTyping() { const el=document.getElementById('ai-typing-el'); if(el) el.remove(); }
+
+function setAIStatus(s) {
+  const el=document.getElementById('aiStatus');
+  el.className='ai-status '+(s==='thinking'?'thinking':'active');
+}
+
+function buildContext() {
+  return {
+    totalPackets: pktCount,
+    circuits: circuits.map(c=>({id:c.id,src:c.src,dst:c.dst})),
+    attackMode,
+    correlations: corrCount,
+    threatLevel,
+    guardEvents, exitEvents,
+    recentGuardLogs: logs.guard.slice(0,5).map(e=>`${e.ts} ${e.from}→${e.to}`),
+    recentExitLogs:  logs.exit.slice(0,5).map(e=>`${e.ts} ${e.from}→${e.to}`),
+    timingMatchCount: attackMode ? corrCount : 0,
+  };
+}
+
+const QUICK_PROMPTS = {
+  explain_tor: "In 3-4 concise sentences, explain how onion routing in TOR protects a user's identity, focusing on why no single relay knows both source and destination.",
+  analyze_traffic: ()=>`Analyze the current network state: ${JSON.stringify(buildContext(),null,2)}\n\nProvide a brief traffic analysis: what patterns you see, which circuits are active, and whether anything looks anomalous.`,
+  correlation_report: ()=>`Generate a short correlation attack report based on this data: ${JSON.stringify(buildContext(),null,2)}\n\nExplain: (1) what timing correlation is, (2) what evidence you see in the logs, (3) confidence level, (4) what this means for user privacy.`,
+  real_world: "Describe 2-3 real-world scenarios where AI agents deployed at network relay nodes could assist security researchers or law enforcement — and the ethical considerations involved. Keep it concise.",
+};
+
+async function callClaude(userPrompt, isStream=false) {
+  const headers = {'Content-Type':'application/json'};
+  const key = getApiKey();
+  if(key) headers['x-api-key'] = key;
+  const msgs = [...aiConversationHistory, {role:'user', content:userPrompt}];
+  const body = {
+    model:'claude-sonnet-4-20250514',
+    max_tokens:500,
+    system: `You are an AI security analyst agent deployed at a TOR network monitoring station for an educational visualization tool. You help students understand anonymization networks, onion routing, and traffic correlation. Be concise, technical but accessible. When analyzing data, be specific about what relay agents can and cannot see. Format responses with clear structure but keep them brief (3-8 sentences max unless generating a report).`,
+    messages: msgs,
+  };
+  const resp = await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers,body:JSON.stringify(body)});
+  const data = await resp.json();
+  if(data.error) throw new Error(data.error.message);
+  const text = data.content.map(b=>b.text||'').join('');
+  aiConversationHistory.push({role:'user',content:userPrompt},{role:'assistant',content:text});
+  if(aiConversationHistory.length>20) aiConversationHistory=aiConversationHistory.slice(-20);
+  return text;
+}
+
+async function aiQuick(type) {
+  const prompt = typeof QUICK_PROMPTS[type]==='function'?QUICK_PROMPTS[type]():QUICK_PROMPTS[type];
+  setAIStatus('thinking'); showTyping();
+  try {
+    const res = await callClaude(prompt);
+    removeTyping(); setAIStatus('active');
+    addAIMsg('analyst','analyst',res.replace(/\n/g,'<br>'));
+  } catch(e) {
+    removeTyping(); setAIStatus('active');
+    addAIMsg('system-msg','system',`⚠ API error: ${e.message}`);
+  }
+}
+
+async function aiAutoAnalyze() {
+  if(!aiAutoMode) return;
+  const ctx2=buildContext();
+  const prompt=attackMode
+    ? `Auto-analysis: Correlation attack is ACTIVE. Data: ${JSON.stringify(ctx2)}. In 2-3 sentences, report what the attack reveals and the current threat level.`
+    : `Auto-analysis: ${ctx2.circuits.length} circuit(s) active, ${ctx2.totalPackets} packets sent. In 1-2 sentences, note what the relay agents are observing.`;
+  setAIStatus('thinking'); showTyping();
+  try {
+    const res = await callClaude(prompt);
+    removeTyping(); setAIStatus('active');
+    addAIMsg('analyst','analyst',res.replace(/\n/g,'<br>'));
+  } catch(e) {
+    removeTyping(); setAIStatus('active');
+  }
+}
+
+async function sendChat() {
+  const inp=document.getElementById('aiChatInput');
+  const q=inp.value.trim(); if(!q) return;
+  inp.value=''; addAIMsg('user-msg','user',q);
+  setAIStatus('thinking'); showTyping();
+  try {
+    const res=await callClaude(q);
+    removeTyping(); setAIStatus('active');
+    addAIMsg('analyst','analyst',res.replace(/\n/g,'<br>'));
+  } catch(e) {
+    removeTyping(); setAIStatus('active');
+    addAIMsg('system-msg','system',`⚠ API error: ${e.message}`);
+  }
+}
+
+// Fix: bind Enter on chat input correctly
+document.getElementById('aiChatInput').addEventListener('keydown', e=>{ if(e.key==='Enter') sendChat(); });
+
+// ── Tooltip ───────────────────────────────────────────────────────────────
+const tip = document.getElementById('tip');
+canvas.addEventListener('mousemove', e=>{
+  const r=canvas.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+  let found=null;
+  for(const n of Object.values(nodes)) if(Math.hypot(mx-n.x,my-n.y)<NR+8){found=n;break;}
+  if(found){
+    tip.innerHTML=NODE_TIPS[found.k];
+    tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY-10)+'px';
+    tip.classList.add('show');
+  } else tip.classList.remove('show');
+});
+canvas.addEventListener('mouseleave',()=>tip.classList.remove('show'));
+
+// ── Animation Loop ────────────────────────────────────────────────────────
+let lastT=0;
+let aiCooldownTimer=0;
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt=Math.min((now-lastT)/1000,0.1); lastT=now;
+  const spd=+document.getElementById('speedSlider').value*0.55;
+
+  // Cooldown tick
+  aiCooldown=Math.max(0,aiCooldown-dt*1000);
+
+  packets.forEach(p=>{
+    if(p.done) return;
+    if(p.delay>0){p.delay-=dt*1000;return;}
+    p.t+=dt*spd;
+    if(p.t>=1){
+      p.t=0; p.step++;
+      const at=p.path[p.step];
+      if(at==='guard') {p.layers=2; onVisit(p,'guard');}
+      if(at==='middle'){p.layers=1; onVisit(p,'middle');}
+      if(at==='exit')  {p.layers=0; onVisit(p,'exit');}
+      if(p.step>=p.path.length-1) p.done=true;
+    }
+  });
+  if(packets.length>80) packets=packets.filter(p=>!p.done);
+
+  // Decay threat slowly
+  if(!attackMode && threatLevel>0){ threatLevel=Math.max(0,threatLevel-0.05); updateThreat(); }
+
+  // Draw main canvas
+  ctx.clearRect(0,0,W,H);
+  // Background grid
+  ctx.save();ctx.strokeStyle='#12181e';ctx.lineWidth=1;
+  for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  ctx.restore();
+
+  const litKeys=new Set(packets.filter(p=>!p.done).flatMap(p=>[p.path[p.step],p.path[Math.min(p.step+1,4)]]));
+  for(let i=0;i<ORDER.length-1;i++) drawEdge(nodes[ORDER[i]],nodes[ORDER[i+1]]);
+  drawCorrArc();
+  ORDER.forEach(k=>drawNode(nodes[k],litKeys.has(k)));
+  drawInfoOverlay();
+  packets.forEach(drawPacket);
+
+  // Layer legend
+  const lx=12,ly=H-70;
+  ctx.save();
+  ctx.font='9px Courier New';ctx.fillStyle='#8b949e';ctx.textAlign='left';
+  ctx.fillText('Encryption layers:',lx,ly);
+  [[C.guard,'Guard key'],[C.middle,'Middle key'],[C.exit,'Exit key']].forEach(([cl,lb],i)=>{
+    ctx.beginPath();ctx.arc(lx+7,ly+14+i*14,4,0,Math.PI*2);ctx.fillStyle=cl;ctx.fill();
+    ctx.fillStyle='#8b949e';ctx.fillText(lb,lx+16,ly+18+i*14);
+  });
+  ctx.restore();
+
+  // Draw timing graph
+  drawTimingGraph();
+}
+resize();
+requestAnimationFrame(t=>{lastT=t;requestAnimationFrame(loop);});
+
+// ── Controls ──────────────────────────────────────────────────────────────
+document.getElementById('btnSend').onclick=()=>{
+  sendPackets(+document.getElementById('burstSlider').value);
+  document.getElementById('sPkts').textContent=pktCount;
+};
+
+document.getElementById('btnAttack').onclick=()=>{
+  attackMode=!attackMode;
+  document.getElementById('btnAttack').classList.toggle('active',attackMode);
+  document.getElementById('sMode').textContent=attackMode?'● ATTACK MODE':'● Normal Mode';
+  document.getElementById('sMode').style.color=attackMode?'var(--orange)':'var(--green)';
+  if(attackMode && aiAutoMode){ aiAutoAnalyze(); aiCooldown=8000; }
+};
+
+document.getElementById('btnClear').onclick=()=>{
+  packets=[];circuits=[];logs={guard:[],middle:[],exit:[]};timingEvents=[];
+  pktCount=0;corrCount=0;guardEvents=0;exitEvents=0;threatLevel=0;
+  updateThreat(); attackMode=false;
+  document.getElementById('btnAttack').classList.remove('active');
+  document.getElementById('sMode').textContent='● Normal Mode';
+  document.getElementById('sMode').style.color='var(--green)';
+  ['sPkts','sCircuits','sCorr','sGuard','sExit'].forEach(id=>document.getElementById(id).textContent=0);
+  ['guard','middle','exit'].forEach(r=>{
+    const el=document.getElementById('log-'+r);
+    if(el) el.innerHTML='<div class="log-item" style="color:var(--muted)">Waiting…</div>';
+  });
+};
+
+document.getElementById('btnAIAuto').onclick=()=>{
+  aiAutoMode=!aiAutoMode;
+  document.getElementById('btnAIAuto').classList.toggle('active',aiAutoMode);
+};
+
+// ── Auto Demo ─────────────────────────────────────────────────────────────
+let demoPhase=0;
+function demoStep() {
+  switch(demoPhase){
+    case 0: sendPackets(2); break;
+    case 1: sendPackets(3); break;
+    case 2: sendPackets(2); break;
+    case 3:
+      addAIMsg('system-msg','system','Demo: Enabling correlation attack mode…');
+      attackMode=true;
+      document.getElementById('btnAttack').classList.add('active');
+      document.getElementById('sMode').textContent='● ATTACK MODE';
+      document.getElementById('sMode').style.color='var(--orange)';
+      break;
+    case 4: sendPackets(2); break;
+    case 5: sendPackets(3); aiQuick('correlation_report'); break;
+    case 6: sendPackets(2); break;
+    case 7: aiQuick('real_world'); break;
+    default:
+      sendPackets(2);
+      if(demoPhase%4===0) aiQuick('analyze_traffic');
+  }
+  document.getElementById('sPkts').textContent=pktCount;
+  demoPhase++;
+}
+
+document.getElementById('btnDemo').onclick=()=>{
+  demoRunning=!demoRunning;
+  document.getElementById('btnDemo').classList.toggle('active',demoRunning);
+  document.getElementById('btnDemo').textContent=demoRunning?'⏹ Stop Demo':'▶ Auto Demo';
+  if(demoRunning){
+    demoPhase=0; demoStep();
+    demoTimer=setInterval(demoStep, 2800);
+    addAIMsg('system-msg','system','Demo started. Watch packet flow, relay agent logs, and timing correlation graph. AI Analyst will auto-comment on key events.');
+  } else {
+    clearInterval(demoTimer); demoTimer=null;
+  }
+};
+
+// Kick off with a welcome message
+setTimeout(()=>{
+  addAIMsg('system-msg','system','System ready. Click ▶ Auto Demo to start the visualization, or use controls to manually send packets.\n\nThis tool shows how TOR relay agents have limited visibility — yet a global adversary with access to all relay logs can correlate source ↔ destination via timing analysis.');
+}, 400);
+</script>
+</body>
+</html>
